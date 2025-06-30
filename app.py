@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
+from PIL import Image
+import os
 
 # -------------------- CONFIG --------------------
 st.set_page_config(
@@ -29,7 +31,16 @@ df = load_data()
 
 # -------------------- SIDEBAR --------------------
 with st.sidebar:
-    st.image("dubai.png", use_container_width=True)
+    # Use your uploaded image here
+    img_path = "dubai.png"
+    if not os.path.exists(img_path):
+        img_path = "f1091b4a-227c-4767-a4a3-84916574102a.png"  # fallback, if user uploaded a file with this name
+
+    try:
+        st.image(Image.open(img_path), use_container_width=True)
+    except Exception as e:
+        st.warning(f"Sidebar image not found or not readable: {img_path}")
+
     st.markdown("""
         <h2 style="color:#003366; font-weight:bold;">Dubai Real Estate Dashboard</h2>
         <p style="font-size: 16px;">
