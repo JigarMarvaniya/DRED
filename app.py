@@ -29,7 +29,10 @@ df = load_data()
 
 # -------------------- SIDEBAR --------------------
 with st.sidebar:
-    st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/c/cb/Dubai_skyline_2015.jpg/800px-Dubai_skyline_2015.jpg", use_column_width=True)
+    st.image(
+        "https://images.unsplash.com/photo-1464983953574-0892a716854b?auto=format&fit=crop&w=800&q=80",
+        use_container_width=True
+    )
     st.markdown("""
         <h2 style="color:#003366; font-weight:bold;">Dubai Real Estate Dashboard</h2>
         <p style="font-size: 16px;">
