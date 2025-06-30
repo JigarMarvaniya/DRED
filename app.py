@@ -30,7 +30,7 @@ df = load_data()
 # -------------------- SIDEBAR --------------------
 with st.sidebar:
     st.image(
-        "https://images.unsplash.com/photo-1464983953574-0892a716854b?auto=format&fit=crop&w=800&q=80",
+        "https://unsplash.com/photos/city-during-day-VbDjv8-8ibc",
         use_container_width=True
     )
     st.markdown("""
