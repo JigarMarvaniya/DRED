@@ -2,12 +2,16 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
-import matplotlib.pyplot as plt
 
-# ----------- PAGE CONFIG -----------------
-st.set_page_config(page_title="Dubai Real Estate Dashboard", layout="wide")
+# -------------------- CONFIG --------------------
+st.set_page_config(
+    page_title="Dubai Real Estate Analytics",
+    layout="wide",
+    initial_sidebar_state="expanded",
+    page_icon="🏙️",
+)
 
-# ----------- LOAD DATA -------------------
+# -------------------- LOAD DATA -----------------
 @st.cache_data
 def load_data():
     df = pd.read_excel("DRED.xlsx", sheet_name=0)
@@ -23,204 +27,205 @@ def load_data():
 
 df = load_data()
 
-# ----------- SIDEBAR FILTERS --------------
-st.sidebar.header("Filter Listings")
+# -------------------- SIDEBAR --------------------
+with st.sidebar:
+    st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/c/cb/Dubai_skyline_2015.jpg/800px-Dubai_skyline_2015.jpg", use_column_width=True)
+    st.markdown("""
+        <h2 style="color:#003366; font-weight:bold;">Dubai Real Estate Dashboard</h2>
+        <p style="font-size: 16px;">
+        Analytics & visualizations for Dubai’s property market. Use filters to explore macro & micro trends.
+        </p>
+    """, unsafe_allow_html=True)
+    st.markdown("---")
 
-areas = df['area_name'].dropna().unique()
-types = df['type'].dropna().unique()
-furnishings = df['furnishing'].dropna().unique()
+    st.header("🔎 **Filter Data**")
 
-selected_area = st.sidebar.multiselect("Area", options=areas, default=list(areas)[:5])
-selected_type = st.sidebar.multiselect("Type", options=types, default=list(types))
-selected_furnishing = st.sidebar.multiselect("Furnishing", options=furnishings, default=list(furnishings))
+    area = st.multiselect("Area", sorted(df['area_name'].dropna().unique()), default=None)
+    type_ = st.multiselect("Type", sorted(df['type'].dropna().unique()), default=None)
+    furnishing = st.multiselect("Furnishing", sorted(df['furnishing'].dropna().unique()), default=None)
 
-min_price, max_price = int(df["price"].min()), int(df["price"].max())
-price_range = st.sidebar.slider("Price Range (AED)", min_price, max_price, (min_price, max_price))
+    price_min, price_max = int(df["price"].min()), int(df["price"].max())
+    price_range = st.slider("Price Range (AED)", min_value=price_min, max_value=price_max,
+                            value=(price_min, price_max), step=10000)
 
-beds = sorted(df['beds'].dropna().unique())
-selected_beds = st.sidebar.multiselect("Bedrooms", options=beds, default=beds)
+    beds = sorted(df['beds'].dropna().unique())
+    selected_beds = st.multiselect("Bedrooms", beds, default=beds)
 
-filtered_df = df[
-    (df['area_name'].isin(selected_area)) &
-    (df['type'].isin(selected_type)) &
-    (df['furnishing'].isin(selected_furnishing)) &
-    (df['price'] >= price_range[0]) &
-    (df['price'] <= price_range[1]) &
-    (df['beds'].isin(selected_beds))
-]
+    st.markdown("---")
+    st.caption("Built by [Your Name] | Powered by Streamlit & Plotly")
 
-# ----------- TABS FOR SECTIONS ------------
-tab1, tab2, tab3, tab4 = st.tabs([
-    "🏙️ Macro Market Trends",
-    "🏘️ Micro & Listing Insights",
-    "📊 Correlations & Advanced",
-    "📄 Full Listings Table"
+# Filter logic
+filtered = df.copy()
+if area: filtered = filtered[filtered['area_name'].isin(area)]
+if type_: filtered = filtered[filtered['type'].isin(type_)]
+if furnishing: filtered = filtered[filtered['furnishing'].isin(furnishing)]
+filtered = filtered[(filtered['price'] >= price_range[0]) & (filtered['price'] <= price_range[1])]
+filtered = filtered[filtered['beds'].isin(selected_beds)]
+
+# -------------------- MAIN LAYOUT --------------------
+st.markdown("""
+    <style>
+    .main .block-container {padding-top:2rem;}
+    .stTabs [role="tab"] {font-size:1.12rem; padding:0.5rem 1.2rem;}
+    </style>
+""", unsafe_allow_html=True)
+
+st.title("🏙️ Dubai Real Estate Analytics Platform")
+st.write(
+    "A one-stop platform to visualize, filter, and analyze Dubai's real estate market at both macro and micro levels. "
+    "Interact with the tabs below for insights. Data is filterable via the left panel."
+)
+
+# -------------------- TABS --------------------
+tabs = st.tabs([
+    "📈 Market Overview",
+    "📊 Investor Insights",
+    "🏡 Property Features",
+    "📍 Map & Hotspots",
+    "📋 Listings Table",
 ])
 
-# ----------- MACRO TRENDS -----------------
-with tab1:
-    st.title("Dubai Real Estate Market - Macro Analysis")
-    st.markdown("A comprehensive view of Dubai's real estate trends, pricing, yields, hotspots, and market composition.")
+# ----------------- 1. MARKET OVERVIEW -----------------
+with tabs[0]:
+    st.subheader("📈 Macro Market Trends")
+    st.markdown("> **How are prices and yields distributed? Where are most listings concentrated?**")
 
-    st.subheader("1. Price Distribution")
-    st.write("This histogram shows the distribution of property prices in AED, giving a sense of market skewness and popular price bands.")
-    fig = px.histogram(filtered_df, x="price", nbins=40, title="Price Distribution")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.caption("**Property Price Distribution**\n\nShows the spread of property prices across all filtered listings.")
+        fig = px.histogram(filtered, x="price", nbins=40, color="price_category",
+                           color_discrete_sequence=px.colors.sequential.Blues,
+                           labels={'price': "Price (AED)"}, title="Price Distribution by Category")
+        st.plotly_chart(fig, use_container_width=True)
+
+    with col2:
+        st.caption("**Rental Yield (%) Distribution**\n\nSee where yields cluster, and which price bands deliver best returns.")
+        fig = px.histogram(filtered, x="rental_yield", nbins=30, color="type",
+                           color_discrete_sequence=px.colors.sequential.Tealgrn,
+                           labels={'rental_yield': "Rental Yield (%)"}, title="Rental Yield Distribution by Type")
+        st.plotly_chart(fig, use_container_width=True)
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.caption("**Listings by Area**\n\nWhere are most properties being listed right now?")
+        area_counts = filtered['area_name'].value_counts().head(15)
+        fig = px.bar(x=area_counts.index, y=area_counts.values, labels={'x':'Area', 'y':'Listings'},
+                     color=area_counts.values, color_continuous_scale='Blues')
+        st.plotly_chart(fig, use_container_width=True)
+
+    with col2:
+        st.caption("**Average Price by Area**\n\nHighlights the premium vs. affordable regions in Dubai.")
+        avg_price = filtered.groupby('area_name')['price'].mean().sort_values(ascending=False).head(15)
+        fig = px.bar(x=avg_price.index, y=avg_price.values, labels={'x':'Area', 'y':'Avg Price (AED)'},
+                     color=avg_price.values, color_continuous_scale='Teal')
+        st.plotly_chart(fig, use_container_width=True)
+
+    st.caption("**Price Category & Completion Status**")
+    col1, col2 = st.columns(2)
+    with col1:
+        fig = px.pie(filtered, names="price_category", title="Price Categories", hole=0.4)
+        st.plotly_chart(fig, use_container_width=True)
+    with col2:
+        fig = px.pie(filtered, names="completion_status", title="Completion Status", hole=0.4)
+        st.plotly_chart(fig, use_container_width=True)
+
+# ----------------- 2. INVESTOR INSIGHTS -----------------
+with tabs[1]:
+    st.subheader("📊 Investor & Financial Insights")
+    st.markdown("> **Which properties offer best returns? Where are the investor hotspots?**")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.caption("**Top 10 Listings by Rental Yield**")
+        top_yield = filtered.sort_values("rental_yield", ascending=False).head(10)
+        st.dataframe(top_yield[['area_name', 'price', 'average_rent', 'rental_yield', 'type', 'beds', 'address']], height=300)
+
+    with col2:
+        st.caption("**Top 10 Most Expensive Listings**")
+        top_price = filtered.sort_values("price", ascending=False).head(10)
+        st.dataframe(top_price[['area_name', 'price', 'average_rent', 'rental_yield', 'type', 'beds', 'address']], height=300)
+
+    st.caption("**Price per Sqft vs Rental Yield**\n\nCheck if higher cost per sqft correlates to better returns.")
+    fig = px.scatter(filtered, x="price_per_sqft", y="rental_yield", color="type",
+                     hover_data=["area_name", "price"],
+                     title="Price per Sqft vs Rental Yield")
     st.plotly_chart(fig, use_container_width=True)
 
-    st.subheader("2. Rental Yield Distribution")
-    st.write("See which properties offer the highest rental returns, useful for investors evaluating yield versus price.")
-    fig = px.histogram(filtered_df, x="rental_yield", nbins=30, title="Rental Yield (%)")
+    st.caption("**Mortgage Score by Price Category**")
+    fig = px.box(filtered, x="price_category", y="mortgage_score", color="price_category",
+                 points="all", title="Mortgage Score by Price Category")
     st.plotly_chart(fig, use_container_width=True)
 
-    st.subheader("3. Days on Market")
-    st.write("A quick look at how long listings typically remain available. Faster turnover may indicate strong demand.")
-    fig = px.histogram(filtered_df, x="days_on_market", nbins=30, title="Days on Market")
+    st.caption("**Investment Grade by Area**")
+    grade_area = filtered.groupby('area_name')['investment_grade'].value_counts().unstack(fill_value=0)
+    st.dataframe(grade_area.style.background_gradient(cmap='Greens'), height=350)
+
+    st.caption("**Year of Completion Trend**\n\nSee how property launches are trending.")
+    year_counts = filtered['year_of_completion'].dropna().astype(int).value_counts().sort_index()
+    fig = px.line(x=year_counts.index, y=year_counts.values,
+                  labels={'x':'Year of Completion', 'y':'Listings'},
+                  title="Trend of New Properties")
     st.plotly_chart(fig, use_container_width=True)
 
-    st.subheader("4. Listings by Area")
-    st.write("Areas with the highest volume of listings, indicating popular or highly transacted regions.")
-    area_counts = filtered_df['area_name'].value_counts().head(20)
-    fig = px.bar(area_counts, x=area_counts.index, y=area_counts.values, labels={'x':'Area', 'y':'Count'})
+# ----------------- 3. PROPERTY FEATURES -----------------
+with tabs[2]:
+    st.subheader("🏡 Property Features & Micro Analysis")
+    st.markdown("> **Drill down into the features that matter for buyers and residents.**")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.caption("**Property Type Distribution**")
+        fig = px.pie(filtered, names="type", title="Type of Property", hole=0.5)
+        st.plotly_chart(fig, use_container_width=True)
+    with col2:
+        st.caption("**Furnishing Status**")
+        fig = px.bar(filtered["furnishing"].value_counts(), text_auto=True, title="Furnishing Status")
+        st.plotly_chart(fig, use_container_width=True)
+
+    st.caption("**Bedrooms & Bathrooms Distribution**")
+    col1, col2 = st.columns(2)
+    with col1:
+        fig = px.histogram(filtered, x="beds", nbins=12, color="type", title="Bedrooms Distribution")
+        st.plotly_chart(fig, use_container_width=True)
+    with col2:
+        fig = px.histogram(filtered, x="baths", nbins=12, color="type", title="Bathrooms Distribution")
+        st.plotly_chart(fig, use_container_width=True)
+
+    st.caption("**Parking Spaces vs. Price**")
+    fig = px.scatter(filtered, x="total_parking_spaces", y="price", color='type',
+                     title="Parking Spaces vs. Price", labels={'total_parking_spaces':'Parking Spaces'})
     st.plotly_chart(fig, use_container_width=True)
 
-    st.subheader("5. Average Price by Area")
-    st.write("The mean price for each area, highlighting premium vs. affordable regions in Dubai.")
-    avg_price = filtered_df.groupby('area_name')['price'].mean().sort_values(ascending=False).head(20)
-    fig = px.bar(avg_price, x=avg_price.index, y=avg_price.values, labels={'x':'Area', 'y':'Avg Price'})
-    st.plotly_chart(fig, use_container_width=True)
-
-    st.subheader("6. Average Rental Yield by Area")
-    st.write("Shows which areas are most attractive for buy-to-let and yield-focused strategies.")
-    avg_yield = filtered_df.groupby('area_name')['rental_yield'].mean().sort_values(ascending=False).head(20)
-    fig = px.bar(avg_yield, x=avg_yield.index, y=avg_yield.values, labels={'x':'Area', 'y':'Avg Yield (%)'})
-    st.plotly_chart(fig, use_container_width=True)
-
-    st.subheader("7. Price Category Distribution")
-    st.write("Breakdown of listings by price category for a snapshot of market segmentation.")
-    fig = px.pie(filtered_df, names="price_category", title="Price Category Split", hole=0.3)
-    st.plotly_chart(fig, use_container_width=True)
-
-    st.subheader("8. Property Type Distribution")
-    st.write("Understand the mix of apartments, villas, and other property types on the market.")
-    fig = px.pie(filtered_df, names="type", title="Type of Property", hole=0.4)
-    st.plotly_chart(fig, use_container_width=True)
-
-    st.subheader("9. Completion Status")
-    st.write("Ready vs. off-plan properties for investment or end-user decisions.")
-    fig = px.bar(filtered_df["completion_status"].value_counts(), text_auto=True, title="Completion Status")
-    st.plotly_chart(fig, use_container_width=True)
-
-    st.subheader("10. Furnishing Status")
-    st.write("Furnished, semi-furnished, and unfurnished property mix in the Dubai market.")
-    fig = px.bar(filtered_df["furnishing"].value_counts(), text_auto=True, title="Furnishing Status")
-    st.plotly_chart(fig, use_container_width=True)
-
-    st.subheader("11. Listings Map - Hotspot Areas")
-    st.write("Visualize where listings are concentrated. Red spots indicate higher listing density ('hotspots').")
-    map_df = filtered_df[['Latitude', 'Longitude', 'price', 'area_name', 'type']].dropna()
-    st.map(map_df, latitude='Latitude', longitude='Longitude', zoom=11)
-
-# ----------- MICRO & LISTING INSIGHTS -------------
-with tab2:
-    st.title("Micro Analysis & Stakeholder Insights")
-    st.markdown("Drill down into micro-level trends, top properties, and detailed features for buyers, investors, and analysts.")
-
-    st.subheader("12. Top 10 Most Expensive Listings")
-    st.write("These are the highest-value properties currently available.")
-    st.dataframe(filtered_df.sort_values('price', ascending=False).head(10))
-
-    st.subheader("13. Top 10 Highest Rental Yields")
-    st.write("Highest-yielding properties for rental investors.")
-    st.dataframe(filtered_df.sort_values('rental_yield', ascending=False).head(10))
-
-    st.subheader("14. Building Age vs. Rental Yield")
-    st.write("Are older or newer buildings yielding better returns? Analyze the impact of building age on rental yield.")
-    filtered_df['building_age'] = filtered_df['post_date'].dt.year - filtered_df['year_of_completion']
-    fig = px.scatter(filtered_df, x='building_age', y='rental_yield', color='type',
-                     title="Building Age vs Rental Yield", labels={'building_age':'Building Age (years)', 'rental_yield':'Yield (%)'})
-    st.plotly_chart(fig, use_container_width=True)
-
-    st.subheader("15. Price per Sqft vs. Rental Yield")
-    st.write("See if higher price per sqft means higher or lower yield—a must for value investors.")
-    fig = px.scatter(filtered_df, x="price_per_sqft", y="rental_yield", color='type',
-                     title="Price per Sqft vs Rental Yield", labels={'price_per_sqft':'Price/Sqft', 'rental_yield':'Yield (%)'})
-    st.plotly_chart(fig, use_container_width=True)
-
-    st.subheader("16. Mortgage Score by Price Category")
-    st.write("Distribution of mortgage scores, segmented by price category (higher is better for financing).")
-    fig = px.box(filtered_df, x="price_category", y="mortgage_score", points="all",
-                 title="Mortgage Score by Price Category")
-    st.plotly_chart(fig, use_container_width=True)
-
-    st.subheader("17. Investment Grade by Area")
-    st.write("Which areas offer higher investment-grade properties? Useful for risk/return profiling.")
-    grade_area = filtered_df.groupby('area_name')['investment_grade'].value_counts().unstack(fill_value=0)
-    st.bar_chart(grade_area.head(20))
-
-    st.subheader("18. Parking Spaces vs. Price")
-    st.write("Does extra parking space mean higher prices?")
-    fig = px.scatter(filtered_df, x="total_parking_spaces", y="price", color='type',
-                     title="Parking Spaces vs. Price")
-    st.plotly_chart(fig, use_container_width=True)
-
-    st.subheader("19. Elevators vs. Price (Apartments Only)")
-    st.write("Are apartments with more elevators commanding higher prices?")
-    apt_df = filtered_df[filtered_df['type'] == "Apartment"].copy()
+    st.caption("**Elevators vs. Price (Apartments Only)**")
+    apt_df = filtered[filtered['type'] == "Apartment"]
     fig = px.scatter(apt_df, x="elevators", y="price", title="Elevators vs Price (Apartments)")
     st.plotly_chart(fig, use_container_width=True)
 
-    st.subheader("20. Property Type vs. Days on Market")
-    st.write("Are some property types selling faster?")
-    fig = px.box(filtered_df, x="type", y="days_on_market", points="outliers", title="Property Type vs. Days on Market")
+    st.caption("**Days on Market by Type**")
+    fig = px.box(filtered, x="type", y="days_on_market", points="outliers", title="Days on Market by Type")
     st.plotly_chart(fig, use_container_width=True)
 
-# ----------- CORRELATIONS & ADVANCED ---------------
-with tab3:
-    st.title("Correlations & Advanced Analytics")
-    st.markdown("Uncover relationships and advanced patterns between key variables.")
+# ----------------- 4. MAP & HOTSPOTS -----------------
+with tabs[3]:
+    st.subheader("📍 Geographic Distribution & Hotspots")
+    st.markdown("> **Where are the listings located? Explore the map and hotspot flags.**")
 
-    st.subheader("21. Correlation Heatmap")
-    st.write("Find out which features are strongly linked (correlated) for deeper statistical insights.")
-    corr = filtered_df.select_dtypes(include=[np.number]).corr()
-    fig, ax = plt.subplots(figsize=(10,7))
-    im = ax.imshow(corr, cmap="coolwarm", aspect="auto")
-    ax.set_xticks(np.arange(len(corr.columns)))
-    ax.set_yticks(np.arange(len(corr.columns)))
-    ax.set_xticklabels(corr.columns, rotation=45, ha="right")
-    ax.set_yticklabels(corr.columns)
-    plt.colorbar(im, ax=ax)
-    st.pyplot(fig)
+    st.caption("**Listings Map (Zoomable & Interactive)**")
+    map_df = filtered[['Latitude', 'Longitude', 'price', 'area_name', 'type']].dropna()
+    st.map(map_df, latitude='Latitude', longitude='Longitude', zoom=11)
 
-    st.subheader("22. Average Rent by Area")
-    st.write("See which areas command the highest average annual rent.")
-    rent_area = filtered_df.groupby("area_name")["average_rent"].mean().sort_values(ascending=False).head(20)
-    fig = px.bar(rent_area, x=rent_area.index, y=rent_area.values, labels={'x':'Area', 'y':'Avg Rent'})
+    st.caption("**Hotspot Flag Distribution**")
+    fig = px.pie(filtered, names="hotspot_flag", title="Hotspot Listings (1=Hotspot, 0=Not)")
     st.plotly_chart(fig, use_container_width=True)
 
-    st.subheader("23. Year of Completion Trend")
-    st.write("Track how new vs. old buildings have trended in Dubai market listings over the years.")
-    year_counts = filtered_df['year_of_completion'].dropna().astype(int).value_counts().sort_index()
-    fig = px.line(x=year_counts.index, y=year_counts.values, labels={'x':'Year of Completion', 'y':'No. of Properties'})
-    st.plotly_chart(fig, use_container_width=True)
+# ----------------- 5. FULL LISTINGS TABLE -----------------
+with tabs[4]:
+    st.subheader("📋 All Filtered Listings")
+    st.markdown(
+        "Use the filters on the sidebar to refine this table. Download your results for further analysis."
+    )
+    st.dataframe(filtered, use_container_width=True)
+    st.download_button("Download filtered data as CSV",
+        data=filtered.to_csv(index=False), file_name="filtered_DRED.csv")
 
-    st.subheader("24. Hotspot Flag Distribution")
-    st.write("How many listings are in market hotspot areas?")
-    fig = px.pie(filtered_df, names="hotspot_flag", title="Hotspot Listings (1=Hotspot, 0=Not)")
-    st.plotly_chart(fig, use_container_width=True)
-
-    st.subheader("25. Listings by Purpose (Sale vs Rent)")
-    st.write("Current purpose mix of available properties in Dubai market.")
-    fig = px.pie(filtered_df, names="purpose", title="Listing Purpose")
-    st.plotly_chart(fig, use_container_width=True)
-
-# ----------- FULL TABLE VIEW -----------------------
-with tab4:
-    st.title("All Listings (Filtered)")
-    st.write("Below is the full table of filtered listings. Use the filters on the sidebar to customize your view. You can scroll, search, and download the results.")
-    st.dataframe(filtered_df)
-
-    st.download_button("Download filtered data as CSV", data=filtered_df.to_csv(index=False), file_name="filtered_DRED.csv")
-
-# ----------- END OF DASHBOARD ----------------------
-st.sidebar.markdown("---")
-st.sidebar.info("**Made with ❤️ for Dubai Real Estate Analytics**")
+# ----------------- END -----------------
